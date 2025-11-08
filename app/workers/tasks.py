@@ -78,5 +78,13 @@ def handle_test_job(params: dict):
     """Example job executor"""
     import time
     duration = params.get("duration", 1)
+    should_fail = params.get("should_fail", False)
+    
+    print(f"DEBUG: params={params}, should_fail={should_fail}, type={type(should_fail)}")
+    
     time.sleep(duration)
+    
+    if should_fail:
+        raise Exception("Intentional error for testing")
+    
     return {"status": "completed", "duration": duration}
