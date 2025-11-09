@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, DateTime, Text, Enum as SQLEnum,ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 import enum
@@ -27,3 +27,22 @@ class Job(Base):
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     worker_id = Column(String, nullable=True)
+
+class NotificationChannel(str, enum.Enum):
+    EMAIL = "email"
+    SMS = "sms"
+    PUSH = "push"
+    IN_APP = "in_app"
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True)
+    notification_id = Column(String, unique=True, index=True)
+    user_id = Column(Integer)#ForeignKey('users.id', ondelete='CASCADE')
+    title = Column(String)
+    message = Column(String)
+    channels = Column(Text)  # JSON string
+    status = Column(String, default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    sent_at = Column(DateTime, nullable=True)

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from app.database import engine
 from app import models
-from app.routers import jobs
+from app.routers import jobs,notifications
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
@@ -14,6 +14,7 @@ app = FastAPI(
 
 # Include routers
 app.include_router(jobs.router)
+app.include_router(notifications.router)
 
 @app.get("/health")
 def health_check():

@@ -20,3 +20,21 @@ class JobResponse(BaseModel):
     
     class Config:
         from_attributes = True
+class NotificationCreate(BaseModel):
+    user_id: int
+    title: str
+    message: str
+    channels: list[str]
+
+class NotificationResponse(BaseModel):
+    notification_id: str
+    user_id: int
+    title: str
+    message: str
+    channels: list[str]
+    status: str
+    created_at: datetime
+    sent_at: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
