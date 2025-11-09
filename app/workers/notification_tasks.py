@@ -68,10 +68,22 @@ def send_notification(self, notification_id: str):
 
 
 def send_email_notification(notification):
-    """Send email - placeholder"""
-    logger.info(f"[EMAIL] To user {notification.user_id}: {notification.title}")
-    # TODO: Implement actual email sending
-
+    """Send email notification"""
+    from app.services.email_service import send_email
+    
+    # For now, use notification.user_id as email
+    # Later you'd look up user's actual email from database
+    to_email = f"user{notification.user_id}@example.com"
+    
+    subject = notification.title
+    body = f"{notification.title}\n\n{notification.message}"
+    
+    success = send_email(to_email, subject, body)
+    
+    if success:
+        logger.info(f"[EMAIL] Sent to {to_email}")
+    else:
+        raise Exception(f"Failed to send email to {to_email}")
 
 def send_sms_notification(notification):
     """Send SMS - placeholder"""
