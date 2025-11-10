@@ -1,7 +1,10 @@
 from app.celery_app import app
 from app.database import SessionLocal
 from app import models
+#from app.routers.notifications import connected_clients
 import json
+from app.services.email_service import send_email
+import asyncio
 from datetime import datetime
 import logging
 
@@ -39,7 +42,9 @@ def send_notification(self, notification_id: str):
                 elif channel == "push":
                     send_push_notification(notification)
                 elif channel == "in_app":
-                    send_in_app_notification(notification)
+
+                
+                 send_in_app_notification(notification)
             except Exception as channel_error:
                 logger.warning(f"Failed to send via {channel}: {str(channel_error)}")
         
@@ -69,7 +74,7 @@ def send_notification(self, notification_id: str):
 
 def send_email_notification(notification):
     """Send email notification"""
-    from app.services.email_service import send_email
+    
     
     # For now, use notification.user_id as email
     # Later you'd look up user's actual email from database
@@ -97,7 +102,45 @@ def send_push_notification(notification):
     # TODO: Implement actual push sending
 
 
+
+# def send_in_app_notification(notification,connected_clients=None):
+#     """Send in-app notification via WebSocket"""
+#     logger.info(f"[IN-APP] To user {notification.user_id}: {notification.title}")
+#     # TODO: Implement WebSocket broadcast
+    
+    
+#     message = {
+#         "type": "notification",
+#         "title": notification.title,
+#         "message": notification.message,
+#         "user_id": notification.user_id
+#     }
+    
+#     # Broadcast to all connected clients
+#     disconnected = set()
+#     for client in connected_clients:
+#         try:
+#             asyncio.run(client.send_json(message))
+#         except Exception as e:
+#             disconnected.add(client)
+    
+#     # Remove disconnected clients
+#     for client in disconnected:
+#         connected_clients.discard(client)
+    
+#     logger.info(f"[IN-APP] Broadcast to {len(connected_clients)} clients")
 def send_in_app_notification(notification):
-    """Send in-app notification - placeholder"""
-    logger.info(f"[IN-APP] To user {notification.user_id}: {notification.title}")
-    # TODO: Implement actual in-app sending
+    """Send in-app notification via Redis Pub/Sub"""
+    from app.services.redis_pubsub import redis_pubsub
+    
+    message = {
+        "type": "notification",
+        "title": notification.title,
+        "message": notification.message,
+        "notification_id": notification.notification_id
+    }
+    
+    # Publish to user's channel
+    redis_pubsub.publish_notification(notification.user_id, message)
+    
+    logger.info(f"[IN-APP] Published to user {notification.user_id}")
