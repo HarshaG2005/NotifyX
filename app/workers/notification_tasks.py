@@ -36,6 +36,7 @@ def send_notification(self, notification_id: str):
         
         # Send to each channel
         for channel in channels:
+            channel_start = time.time()
             try:
                 if channel == "email":
                     send_email_notification(notification)
@@ -48,8 +49,9 @@ def send_notification(self, notification_id: str):
                 notifications_sent.labels(channel=channel, status="success").inc()
                 notification_duration.labels(channel=channel).observe(time.time() - channel_start)
             except Exception as channel_error:
-                logger.warning(f"Failed to send via {channel}: {str(channel_error)}")
                 notifications_sent.labels(channel=channel, status="failed").inc()
+                logger.warning(f"Failed to send via {channel}: {str(channel_error)}")
+                
         
         # Mark as sent
         notification.status = "sent"

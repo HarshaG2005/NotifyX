@@ -18,7 +18,10 @@ app = FastAPI(
 # Include routers
 app.include_router(jobs.router)
 app.include_router(notifications.router)
-
+@app.get("/metrics")
+def metrics():
+    """Prometheus metrics endpoint"""
+    return Response(generate_latest(REGISTRY), media_type="text/plain")
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
@@ -26,7 +29,3 @@ def health_check():
 @app.get("/")
 def root():
     return {"message": "Job Scheduler API", "docs": "/docs"}
-@app.get("/metrics")
-def metrics():
-    """Prometheus metrics endpoint"""
-    return Response(generate_latest(REGISTRY), media_type="text/plain")

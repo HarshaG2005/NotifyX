@@ -7,7 +7,9 @@ from fastapi import WebSocket
 import asyncio
 import uuid
 import json
-
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 @router.post("/", response_model=schemas.NotificationResponse, status_code=status.HTTP_202_ACCEPTED)
