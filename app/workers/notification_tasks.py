@@ -1,7 +1,8 @@
 from app.celery_app import app
 from app.database import SessionLocal
 from app import models
-#from app.routers.notifications import connected_clients
+from app.services.metrics import notifications_sent, notification_duration
+import time
 import json
 from app.services.email_service import send_email
 import asyncio
@@ -16,6 +17,7 @@ def send_notification(self, notification_id: str):
     """Send notification across all channels"""
     
     db = SessionLocal()
+    start_time = time.time()
     
     try:
         # Get notification from database
@@ -42,16 +44,18 @@ def send_notification(self, notification_id: str):
                 elif channel == "push":
                     send_push_notification(notification)
                 elif channel == "in_app":
-
-                
                  send_in_app_notification(notification)
+                notifications_sent.labels(channel=channel, status="success").inc()
+                notification_duration.labels(channel=channel).observe(time.time() - channel_start)
             except Exception as channel_error:
                 logger.warning(f"Failed to send via {channel}: {str(channel_error)}")
+                notifications_sent.labels(channel=channel, status="failed").inc()
         
         # Mark as sent
         notification.status = "sent"
         notification.sent_at = datetime.utcnow()
         db.commit()
+        
         
         logger.info(f"Notification {notification_id} sent successfully")
         return {"status": "sent", "notification_id": notification_id}
@@ -65,6 +69,7 @@ def send_notification(self, notification_id: str):
             raise self.retry(exc=exc, countdown=backoff)
         else:
             notification.status = "failed"
+            notifications_sent.labels(channel="unknown", status="failed").inc()
             db.commit()
             logger.error(f"Notification {notification_id} failed after retries")
     
