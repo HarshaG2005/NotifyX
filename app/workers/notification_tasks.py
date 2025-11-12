@@ -79,7 +79,10 @@ def send_notification(self, notification_id: str):
         logger.error(f"Notification {notification_id} failed: {str(exc)}")
         notifications_sent.labels(channel="unknown", status="failed").inc()
         pending_notifications.dec()
+        logger.info("📊 [ERROR PATH] About to push metrics...")
         push_metrics()  # ← Push metrics even on failure
+        logger.info("📊 [ERROR PATH] Returned from push_metrics()")
+        
         if self.request.retries < self.max_retries:
             backoff = 2 ** self.request.retries
             logger.info(f"Retrying in {backoff}s")
