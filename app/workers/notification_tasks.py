@@ -1,7 +1,12 @@
 from app.celery_app import app
 from app.database import SessionLocal
 from app import models
-from app.services.metrics import notifications_sent, notification_duration
+from app.services.metrics import (
+    notifications_sent, 
+    notification_duration, 
+    pending_notifications,
+    push_metrics  # ← Import push function
+)
 import time
 import json
 from app.services.email_service import send_email
@@ -28,7 +33,8 @@ def send_notification(self, notification_id: str):
         if not notification:
             logger.error(f"Notification {notification_id} not found")
             return
-        
+        # Update gauge: increment pending
+        pending_notifications.inc()
         # Parse channels
         channels = json.loads(notification.channels)
         
@@ -54,9 +60,16 @@ def send_notification(self, notification_id: str):
                 
         
         # Mark as sent
+        # Push metrics after processing all channels
+         
         notification.status = "sent"
         notification.sent_at = datetime.utcnow()
         db.commit()
+        # Update gauge: decrement pending
+        pending_notifications.dec()
+        
+        # Push ALL metrics to Pushgateway
+        push_metrics()
         
         
         logger.info(f"Notification {notification_id} sent successfully")
@@ -64,7 +77,9 @@ def send_notification(self, notification_id: str):
     
     except Exception as exc:
         logger.error(f"Notification {notification_id} failed: {str(exc)}")
-        
+        notifications_sent.labels(channel="unknown", status="failed").inc()
+        pending_notifications.dec()
+        push_metrics()  # ← Push metrics even on failure
         if self.request.retries < self.max_retries:
             backoff = 2 ** self.request.retries
             logger.info(f"Retrying in {backoff}s")
