@@ -1,40 +1,122 @@
-from pydantic import BaseModel, Field
-from typing import Optional, Any
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, Dict, Any, List
 from datetime import datetime
+from enum import Enum
 
-class JobCreate(BaseModel):
-    job_type: str
-    params: dict
-    priority: int = Field(default=5, ge=1, le=10)
+class NotificationStatus(str, Enum):
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+    RETRYING = "retrying"
 
-class JobResponse(BaseModel):
-    job_id: str
-    status: str
-    job_type: str
-    attempts: int
+class JobStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+# ============= USER SCHEMAS =============
+
+class UserPreferences(BaseModel):
+    email: bool = True
+    sms: bool = True
+    push: bool = True
+    in_app: bool = True
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    phone: Optional[str] = None
+    full_name: Optional[str] = None
+    preferences: Optional[UserPreferences] = None
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "email": "user@example.com",
+                "phone": "+1234567890",
+                "full_name": "John Doe",
+                "preferences": {
+                    "email": True,
+                    "sms": False,
+                    "push": True,
+                    "in_app": True
+                }
+            }
+        }
+
+class UserUpdate(BaseModel):
+    phone: Optional[str] = None
+    full_name: Optional[str] = None
+    is_active: Optional[bool] = None
+    preferences: Optional[UserPreferences] = None
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    phone: Optional[str]
+    full_name: Optional[str]
+    is_active: bool
+    preferences: Dict[str, bool]
     created_at: datetime
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
-    result: Optional[Any]
-    error: Optional[str]
+    updated_at: Optional[datetime]
     
     class Config:
         from_attributes = True
+
+# ============= NOTIFICATION SCHEMAS =============
+
 class NotificationCreate(BaseModel):
     user_id: int
-    title: str
-    message: str
-    channels: list[str]
+    title: str = Field(..., min_length=1, max_length=200)
+    message: str = Field(..., min_length=1)
+    channels: List[str] = Field(..., min_items=1)
+   # metadata: Optional[Dict[str, Any]] = {}
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "user_id": 1,
+                "title": "Welcome!",
+                "message": "Welcome to our platform",
+                "channels": ["email", "in_app"],
+                "metadata": {"campaign": "onboarding"}
+            }
+        }
 
 class NotificationResponse(BaseModel):
-    notification_id: str
+    id: str
     user_id: int
     title: str
     message: str
-    channels: list[str]
-    status: str
+    channels: List[str]
+    status: NotificationStatus
+    #metadata: Dict[str, Any]
     created_at: datetime
     sent_at: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
+
+# ============= JOB SCHEMAS =============
+
+class JobCreate(BaseModel):
+    job_type: str
+    params: Dict[str, Any] = {}
+    priority: int = Field(default=5, ge=1, le=10)
+    scheduled_at: Optional[datetime] = None
+
+class JobResponse(BaseModel):
+    id: str
+    job_type: str
+    params: Dict[str, Any]
+    status: JobStatus
+    priority: int
+    result: Optional[Dict[str, Any]]
+    error: Optional[str]
+    scheduled_at: Optional[datetime]
+    started_at: Optional[datetime]
+    completed_at: Optional[datetime]
+    created_at: datetime
     
     class Config:
         from_attributes = True

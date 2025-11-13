@@ -18,26 +18,51 @@ async def create_notification(
     db: Session = Depends(get_db)
 ):
     """Create and queue notification"""
+    # ✅ Validate user exists
+    user = db.query(models.User).filter(models.User.id == notification.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # ✅ Check if user is active
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="User is inactive")
+    
+    # ✅ Respect user preferences (filter channels)
+    user_prefs = user.preferences or {}
+    allowed_channels = [
+        channel for channel in notification.channels 
+        if user_prefs.get(channel, True)  # Default to True if not set
+    ]
+    
+    if not allowed_channels:
+        raise HTTPException(
+            status_code=400,
+            detail="All requested channels are disabled in user preferences"
+        )
     
     notification_id = str(uuid.uuid4())
     
     db_notification = models.Notification(
-        notification_id=notification_id,
+        id=notification_id,
         user_id=notification.user_id,
         title=notification.title,
         message=notification.message,
-        channels=json.dumps(notification.channels),
-        status="pending"
+        channels=allowed_channels,
+        status="pending",
+       # metadata=notification.metadata
     )
     db.add(db_notification)
     db.commit()
     db.refresh(db_notification)
     
-    # Convert channels back to list for response
-    db_notification.channels = json.loads(db_notification.channels)  # Deserialize for response
-    
-    # Queue the notification job
-    send_notification.delay(notification_id)
+    send_notification.delay(
+        notification_id,
+        notification.user_id,
+        notification.title,
+        notification.message,
+        allowed_channels  # ← Use filtered channels
+    )
+    logger.info(f"Queued notification {notification_id} for user {notification.user_id}")
     return db_notification
 @router.get("/user/{user_id}")
 async def get_user_notifications(user_id: int, db: Session = Depends(get_db)):
