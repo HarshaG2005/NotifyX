@@ -6,6 +6,7 @@ from typing import List, Optional
 from app.database import get_db
 from app.models import User, Notification
 from app.schemas import UserCreate, UserUpdate, UserResponse, NotificationResponse, TokenData
+from app.utils import hash
 import logging
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -30,9 +31,12 @@ def create_user(request: Request,user: UserCreate, db: Session = Depends(get_db)
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
+    user_data = user.model_dump()
+    
+    user_data['password'] = hash(user_data['password'])  # Hash it
     
     # Convert Pydantic model to dict, handling preferences
-    user_data = user.model_dump()
+    
     if user_data.get('preferences'):
         user_data['preferences'] = user_data['preferences'].model_dump() if hasattr(user_data['preferences'], 'model_dump') else user_data['preferences']
     
