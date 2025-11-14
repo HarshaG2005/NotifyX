@@ -5,7 +5,7 @@ from app.services.metrics import (
     notifications_sent, 
     notification_duration, 
     pending_notifications,
-    push_metrics  # ← Import push function
+    push_metrics  
 )
 import time
 import json
@@ -30,6 +30,7 @@ def send_notification(self, notification_id: str):
             models.Notification.id == notification_id
         ).first()
         user_id=notification.user_id
+        #Get user details
         user=db.query(models.User).filter(
             models.User.id==user_id
         ).first()
@@ -66,6 +67,7 @@ def send_notification(self, notification_id: str):
             except Exception as channel_error:
                 notifications_sent.labels(channel=channel, status="failed").inc()
                 logger.warning(f"Failed to send via {channel}: {str(channel_error)}")
+                raise channel_error
                 
         
         # Mark as sent
@@ -140,7 +142,7 @@ def send_in_app_notification(notification,message,title):
         "type": "notification",
         "title": title,
         "message": message,
-        "notification_id": notification.notification_id
+        "notification_id": notification.id
     }
     
     # Publish to user's channel

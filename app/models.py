@@ -7,28 +7,7 @@ import enum
 
 Base = declarative_base()
 
-class JobStatus(str, enum.Enum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
 
-class Job(Base):
-    __tablename__ = "jobs"
-    
-    id = Column(Integer, primary_key=True)
-    job_id = Column(String, unique=True, index=True)
-    status = Column(SQLEnum(JobStatus), default=JobStatus.PENDING)
-    job_type = Column(String)
-    params = Column(Text)
-    result = Column(Text, nullable=True)
-    error = Column(Text, nullable=True)
-    attempts = Column(Integer, default=0)
-    max_attempts = Column(Integer, default=5)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    started_at = Column(DateTime, nullable=True)
-    completed_at = Column(DateTime, nullable=True)
-    worker_id = Column(String, nullable=True)
 class NotificationStatus(str,enum.Enum):
     PENDING = "pending"
     SENT = "sent"
@@ -39,6 +18,7 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
+    password = Column(String, nullable=False)
     phone = Column(String, nullable=True)  # For SMS notifications
     full_name = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)

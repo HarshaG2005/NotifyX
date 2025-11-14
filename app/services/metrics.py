@@ -38,9 +38,9 @@ def push_metrics():
     pushgateway_url = pushgateway_url.replace("http://", "").replace("https://", "")
     
     logger.info("=" * 60)
-    logger.info("🔵 PUSH METRICS CALLED")
-    logger.info(f"📍 Target: {pushgateway_url}")
-    logger.info(f"📊 Registry has {len(list(worker_registry.collect()))} metric families")
+    logger.info("PUSH METRICS CALLED")
+    logger.info(f" Target: {pushgateway_url}")
+    logger.info(f" Registry has {len(list(worker_registry.collect()))} metric families")
     
     # Log current metric values
     for metric_family in worker_registry.collect():
@@ -55,13 +55,13 @@ def push_metrics():
             job='celery_workers',
             registry=worker_registry
         )
-        logger.info("✅ Metrics pushed to Pushgateway successfully!")
+        logger.info(" Metrics pushed to Pushgateway successfully!")
         logger.info("=" * 60)
     except Exception as e:
         logger.error("=" * 60)
-        logger.error(f"❌ FAILED to push metrics!")
-        logger.error(f"❌ Error type: {type(e).__name__}")
-        logger.error(f"❌ Error message: {str(e)}")
+        logger.error(f" FAILED to push metrics!")
+        logger.error(f" Error type: {type(e).__name__}")
+        logger.error(f" Error message: {str(e)}")
         logger.error("=" * 60)
         import traceback
         logger.error(traceback.format_exc())

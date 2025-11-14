@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
+from app.oauth2 import get_current_user
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_db
@@ -8,26 +9,34 @@ import asyncio
 import uuid
 import json
 import logging
+from slowapi import Limiter  
+from slowapi.util import get_remote_address  
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+limiter = Limiter(key_func=get_remote_address)# Rate limiter instance
 
+#============ NOTIFICATION ROUTES =============
+#***********CREATE NOTIFICATION ********************************************
 @router.post("/", response_model=schemas.NotificationResponse, status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("10/minute")# Rate limit: 10 requests per minute
 async def create_notification(
+    request: Request,
     notification: schemas.NotificationCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user:schemas.TokenData= Depends(get_current_user)
 ):
     """Create and queue notification"""
-    # ✅ Validate user exists
+    #  Validate user exists
     user = db.query(models.User).filter(models.User.id == notification.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # ✅ Check if user is active
+    #  Check if user is active
     if not user.is_active:
         raise HTTPException(status_code=400, detail="User is inactive")
     
-    # ✅ Respect user preferences (filter channels)
+    # Respect user preferences (filter channels)
     user_prefs = user.preferences or {}
     allowed_channels = [
         channel for channel in notification.channels 
@@ -60,8 +69,9 @@ async def create_notification(
     )
     logger.info(f"Queued notification {notification_id} for user {notification.user_id}")
     return db_notification
+#***********GET NOTIFICATIONS FOR USER ********************************************
 @router.get("/user/{user_id}")
-async def get_user_notifications(user_id: int, db: Session = Depends(get_db)):
+async def get_user_notifications(user_id: int, db: Session = Depends(get_db),current_user:schemas.TokenData= Depends(get_current_user)):
     """Get all notifications for a user"""
     
     notifications = db.query(models.Notification).filter(
@@ -70,8 +80,9 @@ async def get_user_notifications(user_id: int, db: Session = Depends(get_db)):
     
     return notifications
 
+#***********GET NOTIFICATION STATUS ********************************************
 @router.get("/{notification_id}", response_model=schemas.NotificationResponse)
-async def get_notification(notification_id: str, db: Session = Depends(get_db)):
+async def get_notification(notification_id: str, db: Session = Depends(get_db),current_user:schemas.TokenData= Depends(get_current_user)):
     """Get notification status"""
     
     notification = db.query(models.Notification).filter(
@@ -84,9 +95,9 @@ async def get_notification(notification_id: str, db: Session = Depends(get_db)):
     
     return notification
 
-
+#***********WEBSOCKET FOR REAL-TIME UPDATES ********************************************
 @router.websocket("/ws/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, user_id: int):
+async def websocket_endpoint(websocket: WebSocket,request: Request, user_id: int,current_user:schemas.TokenData= Depends(get_current_user)):
     await websocket.accept()
     
     from app.services.redis_pubsub import redis_pubsub

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field,field_validator
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from enum import Enum
@@ -9,11 +9,6 @@ class NotificationStatus(str, Enum):
     FAILED = "failed"
     RETRYING = "retrying"
 
-class JobStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
 
 # ============= USER SCHEMAS =============
 
@@ -25,9 +20,15 @@ class UserPreferences(BaseModel):
 
 class UserCreate(BaseModel):
     email: EmailStr
+    password: str
     phone: Optional[str] = None
     full_name: Optional[str] = None
     preferences: Optional[UserPreferences] = None
+    @field_validator('password')
+    def password_strength(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+        return v
     
     class Config:
         json_schema_extra = {
@@ -97,26 +98,14 @@ class NotificationResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# ============= JOB SCHEMAS =============
+# ============= LOGIN SCHEMAS =============
 
-class JobCreate(BaseModel):
-    job_type: str
-    params: Dict[str, Any] = {}
-    priority: int = Field(default=5, ge=1, le=10)
-    scheduled_at: Optional[datetime] = None
 
-class JobResponse(BaseModel):
-    id: str
-    job_type: str
-    params: Dict[str, Any]
-    status: JobStatus
-    priority: int
-    result: Optional[Dict[str, Any]]
-    error: Optional[str]
-    scheduled_at: Optional[datetime]
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
+class UserLogin(BaseModel):
+    email:EmailStr
+    password:str
+class Token(BaseModel):
+    access_token:str
+    token_type:str
+class TokenData(BaseModel):
+    id:Optional[int]=None

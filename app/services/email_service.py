@@ -4,9 +4,7 @@ from email.mime.multipart import MIMEMultipart
 import os
 from dotenv import load_dotenv
 import logging
-
 load_dotenv()
-
 logger = logging.getLogger(__name__)
 
 SMTP_SERVER = os.getenv("SMTP_SERVER")

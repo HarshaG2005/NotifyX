@@ -1,16 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
+from fastapi.security import OAuth2PasswordBearer
+from app.oauth2 import get_current_user
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database import get_db
 from app.models import User, Notification
-from app.schemas import UserCreate, UserUpdate, UserResponse, NotificationResponse
+from app.schemas import UserCreate, UserUpdate, UserResponse, NotificationResponse, TokenData
 import logging
-
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 router = APIRouter(prefix="/users", tags=["Users"])
 logger = logging.getLogger(__name__)
+limiter = Limiter(key_func=get_remote_address)  # Rate limiter instance
+#============ USER ROUTES =============
 
+#***********CREATE USER ********************************************
 @router.post("/", response_model=UserResponse, status_code=201)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")  # Rate limit: 5 requests per minute
+def create_user(request: Request,user: UserCreate, db: Session = Depends(get_db)):
     """
     Create a new user
     
@@ -36,8 +43,8 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     
     logger.info(f"Created user {db_user.id} ({db_user.email})")
     return db_user
-
-@router.get("/", response_model=List[UserResponse])
+#***********LIST USERS ********************************************
+@router.get("/", response_model=List[UserResponse],)
 def list_users(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
@@ -58,9 +65,9 @@ def list_users(
     
     users = query.offset(skip).limit(limit).all()
     return users
-
+#***********GET USER ********************************************
 @router.get("/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(user_id: int, db: Session = Depends(get_db),current_user:TokenData= Depends(get_current_user)):
     """
     Get a specific user by ID
     """
@@ -69,8 +76,11 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
+#***********UPDATE USER ********************************************
+
 @router.put("/{user_id}", response_model=UserResponse)
-def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")  # Rate limit: 5 requests per minute
+def update_user(request: Request,user_id: int, user_update: UserUpdate, db: Session = Depends(get_db),current_user:TokenData= Depends(get_current_user)):
     """
     Update user information
     
@@ -98,9 +108,9 @@ def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get
     
     logger.info(f"Updated user {user_id}")
     return db_user
-
+#***********DELETE USER ********************************************
 @router.delete("/{user_id}", status_code=204)
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(user_id: int, db: Session = Depends(get_db),current_user:TokenData= Depends(get_current_user)):
     """
     Delete a user (soft delete by setting is_active=False)
     """
@@ -114,13 +124,14 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     
     logger.info(f"Deleted (deactivated) user {user_id}")
     return None
-
+#***********GET USER NOTIFICATIONS ********************************************
 @router.get("/{user_id}/notifications", response_model=List[NotificationResponse])
 def get_user_notifications(
     user_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user:TokenData= Depends(get_current_user)
 ):
     """
     Get all notifications for a specific user
@@ -139,8 +150,9 @@ def get_user_notifications(
     
     return notifications
 
+#***********GET USER PREFERENCES ********************************************
 @router.get("/{user_id}/preferences", response_model=dict)
-def get_user_preferences(user_id: int, db: Session = Depends(get_db)):
+def get_user_preferences(user_id: int, db: Session = Depends(get_db),current_user:TokenData= Depends(get_current_user)):
     """
     Get user's notification preferences
     """
@@ -149,12 +161,15 @@ def get_user_preferences(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     
     return user.preferences
-
+#***********UPDATE USER PREFERENCES ********************************************
 @router.put("/{user_id}/preferences", response_model=dict)
+@limiter.limit("5/minute")  # Rate limit: 5 requests per minute
 def update_user_preferences(
+    request: Request,
     user_id: int,
     preferences: dict,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user:TokenData= Depends(get_current_user)
 ):
     """
     Update user's notification preferences

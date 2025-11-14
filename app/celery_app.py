@@ -19,5 +19,5 @@ app.conf.update(
     timezone='UTC',
     enable_utc=True,
 ) 
-from app.workers import tasks
+
 from app.workers import notification_tasks
