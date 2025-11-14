@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @app.task(bind=True, max_retries=5)
-def send_notification(self, notification_id: str,user_id: int, title: str, message: str, channels: list,email: str = None, phone: str = None):
+def send_notification(self, notification_id: str):
     """Send notification across all channels"""
     
     db = SessionLocal()
@@ -27,8 +27,18 @@ def send_notification(self, notification_id: str,user_id: int, title: str, messa
     try:
         # Get notification from database
         notification = db.query(models.Notification).filter(
-            models.Notification.notification_id == notification_id
+            models.Notification.id == notification_id
         ).first()
+        user_id=notification.user_id
+        user=db.query(models.User).filter(
+            models.User.id==user_id
+        ).first()
+        email=user.email
+        phone=user.phone
+        message=notification.message
+        title=notification.title
+        channels=notification.channels
+
         
         if not notification:
             logger.error(f"Notification {notification_id} not found")

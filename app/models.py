@@ -29,7 +29,7 @@ class Job(Base):
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     worker_id = Column(String, nullable=True)
-class NotificationStatus(enum.Enum):
+class NotificationStatus(str,enum.Enum):
     PENDING = "pending"
     SENT = "sent"
     FAILED = "failed"

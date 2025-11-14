@@ -56,11 +56,7 @@ async def create_notification(
     db.refresh(db_notification)
     
     send_notification.delay(
-        notification_id,
-        notification.user_id,
-        notification.title,
-        notification.message,
-        allowed_channels  # ← Use filtered channels
+        notification_id
     )
     logger.info(f"Queued notification {notification_id} for user {notification.user_id}")
     return db_notification
