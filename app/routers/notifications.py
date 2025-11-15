@@ -86,9 +86,9 @@ async def get_notification(notification_id: str, db: Session = Depends(get_db),c
     """Get notification status"""
     
     notification = db.query(models.Notification).filter(
-        models.Notification.notification_id == notification_id
+        models.Notification.id == notification_id
     ).first()
-    notification.channels = json.loads(notification.channels)  # Deserialize for response
+    notification.channels = notification.channels  # Deserialize for response
     
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
@@ -97,7 +97,7 @@ async def get_notification(notification_id: str, db: Session = Depends(get_db),c
 
 #***********WEBSOCKET FOR REAL-TIME UPDATES ********************************************
 @router.websocket("/ws/{user_id}")
-async def websocket_endpoint(websocket: WebSocket,request: Request, user_id: int,current_user:schemas.TokenData= Depends(get_current_user)):
+async def websocket_endpoint(websocket: WebSocket, user_id: int):
     await websocket.accept()
     
     from app.services.redis_pubsub import redis_pubsub
